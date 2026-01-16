@@ -1,4 +1,5 @@
 import itertools
+import os
 import random
 from typing import Dict, Iterable, List, Tuple
 
@@ -66,11 +67,13 @@ def generate_postdiscard_dataset(
 
 
 def save_prediscard_dataset(batch: int, player_hands: np.ndarray, opponent_hands: np.ndarray) -> None:
+    os.makedirs("dataset", exist_ok=True)
     np.save(f"dataset/toss_player_hands_{batch}.npy", player_hands)
     np.save(f"dataset/toss_opponent_hands_{batch}.npy", opponent_hands)
 
 
 def save_postdiscard_dataset(batch: int, boards: np.ndarray, winners: np.ndarray | None) -> None:
+    os.makedirs("dataset", exist_ok=True)
     np.save(f"dataset/toss_boards_{batch}.npy", boards)
     if winners is not None:
         np.save(f"dataset/toss_winners_{batch}.npy", winners)
