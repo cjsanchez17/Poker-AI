@@ -63,6 +63,17 @@ python src/toss_train.py --train-prediscard --batch 0 --iterations 50000 --outpu
 python src/toss_train.py --train-postdiscard --batch 0 --iterations 50000 --output-prefix toss_strategy
 ```
 
+### Strategy coverage check (optional)
+After training, you can estimate how often the learned infosets are present for the dataset:
+```bash
+python src/toss_eval.py \
+  --batch 0 \
+  --prediscard-strategy toss_strategy_prediscard_0.joblib \
+  --postdiscard-strategy toss_strategy_postdiscard_0.joblib \
+  --prediscard-clusters dataset/toss_prediscard_clusters.pkl \
+  --flop4-clusters dataset/toss_flop4_clusters.pkl
+```
+
 ## Discussions
 
 ### Why Poker AI is interesting
