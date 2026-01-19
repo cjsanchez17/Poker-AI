@@ -25,6 +25,8 @@ class TossSmokeTests(unittest.TestCase):
             self.assertEqual(len(combined), len(set(combined)))
 
     def test_best_hand_rank_ordering(self) -> None:
+        # In Toss or Hold'em, players start with 3 hole cards and finish with 6 board cards.
+        # best_hand_rank picks the best 5-card hand using any 2 of the 3 hole cards plus 5 board cards.
         hero_hole = ["Ah", "Kh", "Qh"]
         villain_hole = ["As", "Ad", "2c"]
         board = ["Jh", "Th", "9h", "2d", "3c", "4s"]
