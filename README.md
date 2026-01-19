@@ -41,6 +41,28 @@ cd src
 python3 postflop_holdem.py
 ```
 
+## Toss or Hold'em (6.9630) workflow
+For the Toss or Hold'em variant, `src/toss_train.py` can generate datasets, cluster hands/boards,
+and train the CFR strategies. The commands below mirror the options supported by the script.
+
+### Quick test run (small sample)
+Use a small dataset to validate the pipeline before committing hours of computation:
+```bash
+python src/toss_train.py --generate-datasets --batch 0 --samples 1000 --seed 42
+python src/toss_train.py --cluster --batch 0
+python src/toss_train.py --train-prediscard --batch 0 --iterations 2000 --output-prefix toss_strategy_quick
+python src/toss_train.py --train-postdiscard --batch 0 --iterations 2000 --output-prefix toss_strategy_quick
+```
+
+### Full training run (larger sample)
+Once the quick run succeeds, scale up the dataset and iterations:
+```bash
+python src/toss_train.py --generate-datasets --batch 0 --samples 50000 --seed 42
+python src/toss_train.py --cluster --batch 0
+python src/toss_train.py --train-prediscard --batch 0 --iterations 50000 --output-prefix toss_strategy
+python src/toss_train.py --train-postdiscard --batch 0 --iterations 50000 --output-prefix toss_strategy
+```
+
 ## Discussions
 
 ### Why Poker AI is interesting
