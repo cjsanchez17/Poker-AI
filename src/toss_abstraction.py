@@ -6,6 +6,7 @@ from typing import Dict, Iterable, List, Tuple
 import joblib
 import numpy as np
 from sklearn.cluster import KMeans
+from tqdm import tqdm
 
 from toss_cards import cards_to_str
 from toss_hand_eval import best_hand_rank
@@ -115,10 +116,15 @@ def estimate_hand_strength(three_hole: Iterable[int], samples: int = 200) -> flo
 
 
 def cluster_prediscard_hands(three_card_hands: Iterable[Iterable[int]]) -> Dict[str, int]:
-    features = np.array([estimate_hand_strength(hand) for hand in three_card_hands]).reshape(-1, 1)
+    hands = list(three_card_hands)
+    strengths = [
+        estimate_hand_strength(hand)
+        for hand in tqdm(hands, desc="Clustering prediscard hands")
+    ]
+    features = np.array(strengths).reshape(-1, 1)
     kmeans = KMeans(n_clusters=PREDISCARD_CLUSTER_COUNT, random_state=42)
     labels = kmeans.fit_predict(features)
-    mapping = {"".join(cards_to_str(hand)): int(label) for hand, label in zip(three_card_hands, labels)}
+    mapping = {"".join(cards_to_str(hand)): int(label) for hand, label in zip(hands, labels)}
     return mapping
 
 
@@ -147,10 +153,15 @@ def estimate_flop4_strength(flop4: Iterable[int], samples: int = 200) -> float:
 
 
 def cluster_flop4_boards(flop4_boards: Iterable[Iterable[int]]) -> Dict[str, int]:
-    features = np.array([estimate_flop4_strength(board) for board in flop4_boards]).reshape(-1, 1)
+    boards = list(flop4_boards)
+    strengths = [
+        estimate_flop4_strength(board)
+        for board in tqdm(boards, desc="Clustering flop4 boards")
+    ]
+    features = np.array(strengths).reshape(-1, 1)
     kmeans = KMeans(n_clusters=FLOP4_CLUSTER_COUNT, random_state=42)
     labels = kmeans.fit_predict(features)
-    mapping = {"".join(cards_to_str(board)): int(label) for board, label in zip(flop4_boards, labels)}
+    mapping = {"".join(cards_to_str(board)): int(label) for board, label in zip(boards, labels)}
     return mapping
 
 
