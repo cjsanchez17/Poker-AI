@@ -74,6 +74,18 @@ python src/toss_eval.py \
   --flop4-clusters dataset/toss_flop4_clusters.pkl
 ```
 
+### Self-play evaluation (optional)
+You can also run a lightweight self-play simulation using the trained strategies:
+```bash
+python src/toss_selfplay_eval.py \
+  --batch 0 \
+  --hands 1000 \
+  --prediscard-strategy toss_strategy_prediscard_0.joblib \
+  --postdiscard-strategy toss_strategy_postdiscard_0.joblib \
+  --prediscard-clusters dataset/toss_prediscard_clusters.pkl \
+  --flop4-clusters dataset/toss_flop4_clusters.pkl
+```
+
 ## Discussions
 
 ### Why Poker AI is interesting
