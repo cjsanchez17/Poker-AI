@@ -197,5 +197,6 @@ def create_infoSet(infoSet_key: List[Action], actions: List[Action], player: Pla
 
 
 def create_history(sample_id: int):
+    if player_hands and opponent_hands and boards:
+        sample_id = sample_id % min(len(player_hands), len(opponent_hands), len(boards))
     return PostDiscardTossHistory(sample_id=sample_id)
-
