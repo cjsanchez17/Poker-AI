@@ -41,6 +41,51 @@ cd src
 python3 postflop_holdem.py
 ```
 
+## Toss or Hold'em (6.9630) workflow
+For the Toss or Hold'em variant, `src/toss_train.py` can generate datasets, cluster hands/boards,
+and train the CFR strategies. The commands below mirror the options supported by the script.
+
+### Quick test run (small sample)
+Use a small dataset to validate the pipeline before committing hours of computation:
+```bash
+python src/toss_train.py --generate-datasets --batch 0 --samples 1000 --seed 42
+python src/toss_train.py --cluster --batch 0
+python src/toss_train.py --train-prediscard --batch 0 --iterations 2000 --output-prefix toss_strategy_quick
+python src/toss_train.py --train-postdiscard --batch 0 --iterations 2000 --output-prefix toss_strategy_quick
+```
+
+### Full training run (larger sample)
+Once the quick run succeeds, scale up the dataset and iterations:
+```bash
+python src/toss_train.py --generate-datasets --batch 0 --samples 50000 --seed 42
+python src/toss_train.py --cluster --batch 0
+python src/toss_train.py --train-prediscard --batch 0 --iterations 50000 --output-prefix toss_strategy
+python src/toss_train.py --train-postdiscard --batch 0 --iterations 50000 --output-prefix toss_strategy
+```
+
+### Strategy coverage check (optional)
+After training, you can estimate how often the learned infosets are present for the dataset:
+```bash
+python src/toss_eval.py \
+  --batch 0 \
+  --prediscard-strategy toss_strategy_prediscard_0.joblib \
+  --postdiscard-strategy toss_strategy_postdiscard_0.joblib \
+  --prediscard-clusters dataset/toss_prediscard_clusters.pkl \
+  --flop4-clusters dataset/toss_flop4_clusters.pkl
+```
+
+### Self-play evaluation (optional)
+You can also run a lightweight self-play simulation using the trained strategies:
+```bash
+python src/toss_selfplay_eval.py \
+  --batch 0 \
+  --hands 1000 \
+  --prediscard-strategy toss_strategy_prediscard_0.joblib \
+  --postdiscard-strategy toss_strategy_postdiscard_0.joblib \
+  --prediscard-clusters dataset/toss_prediscard_clusters.pkl \
+  --flop4-clusters dataset/toss_flop4_clusters.pkl
+```
+
 ## Discussions
 
 ### Why Poker AI is interesting

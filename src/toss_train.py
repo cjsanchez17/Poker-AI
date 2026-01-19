@@ -28,6 +28,7 @@ def train_prediscard(batch: int, iterations: int, output_prefix: str) -> None:
 
 
 def train_postdiscard(batch: int, iterations: int, output_prefix: str) -> None:
+    toss_abstraction.load_prediscard_dataset(batch)
     toss_abstraction.load_postdiscard_dataset(batch)
     toss_postdiscard.player_hands = toss_abstraction.prediscard_player_hands
     toss_postdiscard.opponent_hands = toss_abstraction.prediscard_opponent_hands

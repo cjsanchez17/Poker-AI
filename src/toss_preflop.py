@@ -137,5 +137,6 @@ def create_infoSet(infoSet_key: List[Action], actions: List[Action], player: Pla
 
 
 def create_history(sample_id: int):
+    if player_hands:
+        sample_id = sample_id % len(player_hands)
     return PreDiscardTossHistory(sample_id=sample_id)
-
