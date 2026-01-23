@@ -7,7 +7,16 @@ from skeleton.states import NUM_ROUNDS, STARTING_STACK, BIG_BLIND, SMALL_BLIND
 from skeleton.bot import Bot
 from skeleton.runner import parse_args, run_bot
 
+import joblib
+import os
 import random
+import sys
+
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+sys.path.append(REPO_ROOT)
+sys.path.append(os.path.join(REPO_ROOT, "src"))
+
+from postflop_holdem import PostflopHoldemHistory  # noqa: E402
 
 # from discard_helper import choose_card_to_toss
 
@@ -26,7 +35,12 @@ class Player(Bot):
         Returns:
         Nothing.
         '''
-        pass
+        self.cfr_history = []
+        self.last_board_len = 0
+        self.player_index = None
+
+        infoset_path = os.path.join(REPO_ROOT, "src", "postflop_infoSets_batch_19.joblib")
+        self.postflop_infosets = joblib.load(infoset_path)
 
     def handle_new_round(self, game_state, round_state, active):
         '''
@@ -46,7 +60,9 @@ class Player(Bot):
         round_num = game_state.round_num  # the round number from 1 to NUM_ROUNDS
         my_cards = round_state.hands[active]  # your cards
         big_blind = bool(active)  # True if you are the big blind
-        pass
+        self.player_index = active
+        self.cfr_history = []
+        self.last_board_len = 0
 
     def handle_round_over(self, game_state, terminal_state, active):
         '''
@@ -67,6 +83,141 @@ class Player(Bot):
         # opponent's cards or [] if not revealed
         opp_cards = previous_state.hands[1-active]
         pass
+
+    def handle_engine_update(self, clause, round_state, active):
+        clause_type = clause[0]
+        if clause_type == "H":
+            hand_str = "".join(clause[1:].split(","))
+            self.player_index = active
+            if active == 0:
+                self.cfr_history = [hand_str, "XXXX"]
+            else:
+                self.cfr_history = ["XXXX", hand_str]
+            self.last_board_len = 0
+        elif clause_type == "O":
+            opp_hand = "".join(clause[1:].split(","))
+            if self.player_index == 0:
+                self.cfr_history[1] = opp_hand
+            else:
+                self.cfr_history[0] = opp_hand
+        elif clause_type == "B":
+            board = round_state.board
+            board_len = len(board)
+            if board_len >= 4 and self.last_board_len < 4:
+                self.cfr_history.append("/")
+                self.cfr_history.append("".join(board[:4]))
+            if board_len >= 5 and self.last_board_len < 5:
+                self.cfr_history.append("/")
+                self.cfr_history.append(board[4])
+            if board_len >= 6 and self.last_board_len < 6:
+                self.cfr_history.append("/")
+                self.cfr_history.append(board[5])
+            self.last_board_len = board_len
+        elif clause_type in {"F", "C", "K", "R"}:
+            if clause_type == "F":
+                self.cfr_history.append("f")
+            elif clause_type == "C":
+                self.cfr_history.append("c")
+            elif clause_type == "K":
+                self.cfr_history.append("k")
+            elif clause_type == "R":
+                self.cfr_history.append(f"b{clause[1:]}")
+
+    def _get_stage(self, history):
+        if "/" in history:
+            return history[: history.index("/")]
+        return history
+
+    def _perform_postflop_abstraction(self, history):
+        history = list(history)
+        pot_total = BIG_BLIND * 2
+
+        if "/" in history:
+            flop_start = history.index("/")
+            for action in history[:flop_start]:
+                if action[0] == "b":
+                    bet_size = int(action[1:])
+                    pot_total = 2 * bet_size
+        else:
+            return history
+
+        abstracted_history = history[:2]
+        stage_start = flop_start
+        stage = self._get_stage(history[stage_start + 1 :])
+        latest_bet = 0
+        while True:
+            abstracted_history.append("/")
+            if len(stage) >= 4 and stage[3] != "c":
+                abstracted_history.append(stage[0])
+                if stage[-1] == "c":
+                    if len(stage) % 2 == 1:
+                        abstracted_history += ["bMAX", "c"]
+                    else:
+                        if stage[0] == "k":
+                            abstracted_history += ["k", "bMAX", "c"]
+                        else:
+                            abstracted_history += ["bMIN", "bMAX", "c"]
+                else:
+                    if len(stage) % 2 == 0:
+                        abstracted_history.append("bMAX")
+                    else:
+                        abstracted_history += ["bMIN", "bMAX"]
+            else:
+                for action in stage:
+                    if action[0] == "b":
+                        bet_size = int(action[1:])
+                        latest_bet = bet_size
+                        if abstracted_history[-1] == "bMIN":
+                            abstracted_history.append("bMAX")
+                        elif abstracted_history[-1] == "bMAX":
+                            abstracted_history[-1] = "bMIN"
+                            abstracted_history.append("bMAX")
+                        else:
+                            if bet_size >= pot_total:
+                                abstracted_history.append("bMAX")
+                            else:
+                                abstracted_history.append("bMIN")
+                        pot_total += bet_size
+                    elif action == "c":
+                        pot_total += latest_bet
+                        abstracted_history.append("c")
+                    else:
+                        abstracted_history.append(action)
+            if "/" not in history[stage_start + 1 :]:
+                break
+            stage_start = history[stage_start + 1 :].index("/") + (stage_start + 1)
+            stage = self._get_stage(history[stage_start + 1 :])
+
+        return abstracted_history
+
+    def _pick_strategy_action(self, strategy):
+        actions = list(strategy.keys())
+        weights = list(strategy.values())
+        return random.choices(actions, weights=weights, k=1)[0]
+
+    def _map_cfr_action(self, abstracted_action, round_state):
+        legal_actions = round_state.legal_actions()
+        my_pip = round_state.pips[self.player_index]
+        my_stack = round_state.stacks[self.player_index]
+        opp_stack = round_state.stacks[1 - self.player_index]
+        total_pot = (STARTING_STACK - my_stack) + (STARTING_STACK - opp_stack)
+        min_raise, max_raise = round_state.raise_bounds()
+
+        if abstracted_action == "bMIN" and RaiseAction in legal_actions:
+            desired_bet = max(BIG_BLIND, int(total_pot / 3))
+            desired_total = my_pip + desired_bet
+            raise_amount = max(min_raise, min(desired_total, max_raise))
+            return RaiseAction(raise_amount)
+        if abstracted_action == "bMAX" and RaiseAction in legal_actions:
+            desired_bet = total_pot
+            desired_total = my_pip + desired_bet
+            raise_amount = max(min_raise, min(desired_total, max_raise))
+            return RaiseAction(raise_amount)
+        if abstracted_action == "f" and FoldAction in legal_actions:
+            return FoldAction()
+        if CheckAction in legal_actions:
+            return CheckAction()
+        return CallAction()
 
     def get_action(self, game_state, round_state, active):
         '''
@@ -120,32 +271,20 @@ class Player(Bot):
                 return DiscardAction(2)
             # DiscardAction(0)
         
-        #### strong cards betting logic from lecture
-        strong_cards = "TJQKA"
+        if len(round_state.board) < 4:
+            if CheckAction in legal_actions:
+                return CheckAction()
+            return CallAction()
 
-        if RaiseAction in legal_actions:
-            # the smallest and largest numbers of chips for a legal bet/raise
-            min_raise, max_raise = round_state.raise_bounds()
-            min_cost = min_raise - my_pip  # the cost of a minimum bet/raise
-            max_cost = max_raise - my_pip  # the cost of a maximum bet/raise
-            
-            is_strong = True
-            for card in my_cards:
-                if not (card[0] in strong_cards):
-                    is_strong = False
-                    break
-            
-            if is_strong:
-                return RaiseAction(min(min_raise * 10, max_raise))
+        abstracted_history = self._perform_postflop_abstraction(self.cfr_history)
+        infoset_key = PostflopHoldemHistory(abstracted_history).get_infoSet_key_online()
+        if infoset_key in self.postflop_infosets:
+            strategy = self.postflop_infosets[infoset_key].get_average_strategy()
+            abstracted_action = self._pick_strategy_action(strategy)
+            return self._map_cfr_action(abstracted_action, round_state)
 
-            else:
-                if random.random() < 0.5:
-                    return RaiseAction(min_raise)
-                
-        if CheckAction in legal_actions:  # check-call
+        if CheckAction in legal_actions:
             return CheckAction()
-        if random.random() < 0.25:
-            return FoldAction()
         return CallAction()
 
 
