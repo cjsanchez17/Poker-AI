@@ -14,10 +14,13 @@ import sys
 
 DISCRETE_ACTIONS = ["k", "bMIN", "bMAX", "c", "f"]
 
-BASE_DIR = os.path.dirname(__file__)
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 SRC_DIR = os.path.join(BASE_DIR, "src")
 if SRC_DIR not in sys.path:
     sys.path.append(SRC_DIR)
+
+print(f"[CFR] BASE_DIR={BASE_DIR}")
+print(f"[CFR] SRC_DIR={SRC_DIR}")
 
 try:
     import postflop_holdem  # type: ignore
@@ -65,6 +68,7 @@ class Player(Bot):
         self.postflop_infosets = None
 
         infoset_path = os.path.join(SRC_DIR, "postflop_infoSets_batch_19.joblib")
+        print(f"[CFR] Infoset path: {infoset_path}")
         if os.path.exists(infoset_path):
             if postflop_holdem is not None:
                 sys.modules["__main__"].PostflopHoldemInfoSet = (
@@ -72,8 +76,11 @@ class Player(Bot):
                 )
             try:
                 self.postflop_infosets = joblib.load(infoset_path)
+                print(f"[CFR] Loaded infosets: {len(self.postflop_infosets)}")
             except Exception as error:
                 print(f"Failed to load CFR infosets: {error}")
+        else:
+            print("[CFR] Infoset file not found.")
 
     def handle_new_round(self, game_state, round_state, active):
         '''
@@ -343,6 +350,7 @@ class Player(Bot):
             if infoset_key in self.postflop_infosets:
                 strategy = self.postflop_infosets[infoset_key].get_average_strategy()
                 abstracted_action = self._pick_strategy_action(strategy)
+                print(f"[CFR] Using infoset {infoset_key} -> {abstracted_action}")
                 return self._map_cfr_action(abstracted_action, round_state)
 
         if CheckAction in legal_actions:
