@@ -12,11 +12,16 @@ import os
 import random
 import sys
 
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-sys.path.append(REPO_ROOT)
-sys.path.append(os.path.join(REPO_ROOT, "src"))
+DISCRETE_ACTIONS = ["k", "bMIN", "bMAX", "c", "f"]
 
-from postflop_holdem import PostflopHoldemHistory  # noqa: E402
+POKER_AI_SRC = os.getenv("POKER_AI_SRC")
+if POKER_AI_SRC:
+    sys.path.append(POKER_AI_SRC)
+
+try:
+    from abstraction import predict_cluster  # type: ignore
+except ImportError:
+    predict_cluster = None
 
 # from discard_helper import choose_card_to_toss
 
@@ -38,9 +43,13 @@ class Player(Bot):
         self.cfr_history = []
         self.last_board_len = 0
         self.player_index = None
+        self.postflop_infosets = None
 
-        infoset_path = os.path.join(REPO_ROOT, "src", "postflop_infoSets_batch_19.joblib")
-        self.postflop_infosets = joblib.load(infoset_path)
+        infoset_path = os.getenv("POKER_CFR_INFOSETS", "postflop_infoSets_batch_19.joblib")
+        if not os.path.isabs(infoset_path):
+            infoset_path = os.path.join(os.path.dirname(__file__), infoset_path)
+        if os.path.exists(infoset_path):
+            self.postflop_infosets = joblib.load(infoset_path)
 
     def handle_new_round(self, game_state, round_state, active):
         '''
@@ -195,6 +204,34 @@ class Player(Bot):
         weights = list(strategy.values())
         return random.choices(actions, weights=weights, k=1)[0]
 
+    def _build_infoset_key(self, history):
+        if predict_cluster is None or self.player_index is None:
+            return None
+
+        infoset = []
+        stage_i = 0
+        if self.player_index == 0:
+            hand = [history[0][:2], history[0][2:4]]
+        else:
+            hand = [history[1][:2], history[1][2:4]]
+        community_cards = []
+
+        for action in history:
+            if action not in DISCRETE_ACTIONS:
+                if action == "/":
+                    stage_i += 1
+                    continue
+                if stage_i != 0:
+                    community_cards += [
+                        action[i : i + 2] for i in range(0, len(action), 2)
+                    ]
+                if stage_i in {1, 2, 3}:
+                    infoset.append(str(predict_cluster(hand + community_cards)))
+            else:
+                infoset.append(action)
+
+        return "".join(infoset)
+
     def _map_cfr_action(self, abstracted_action, round_state):
         legal_actions = round_state.legal_actions()
         my_pip = round_state.pips[self.player_index]
@@ -277,11 +314,12 @@ class Player(Bot):
             return CallAction()
 
         abstracted_history = self._perform_postflop_abstraction(self.cfr_history)
-        infoset_key = PostflopHoldemHistory(abstracted_history).get_infoSet_key_online()
-        if infoset_key in self.postflop_infosets:
-            strategy = self.postflop_infosets[infoset_key].get_average_strategy()
-            abstracted_action = self._pick_strategy_action(strategy)
-            return self._map_cfr_action(abstracted_action, round_state)
+        infoset_key = self._build_infoset_key(abstracted_history)
+        if infoset_key and self.postflop_infosets:
+            if infoset_key in self.postflop_infosets:
+                strategy = self.postflop_infosets[infoset_key].get_average_strategy()
+                abstracted_action = self._pick_strategy_action(strategy)
+                return self._map_cfr_action(abstracted_action, round_state)
 
         if CheckAction in legal_actions:
             return CheckAction()
