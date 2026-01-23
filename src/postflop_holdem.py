@@ -180,11 +180,11 @@ class PostflopHoldemHistory(base.History):
         elif self.history[-1] != "/":
             return "/"
         elif self.stage_i == 1:
-            return "".join(boards[self.sample_id][:3])
+            return "".join(boards[self.sample_id][:4])
         elif self.stage_i == 2:
-            return boards[self.sample_id][3]
-        elif self.stage_i == 3:
             return boards[self.sample_id][4]
+        elif self.stage_i == 3:
+            return boards[self.sample_id][5]
 
     def get_last_game_stage(self):
         last_game_stage_start_idx = max(loc for loc, val in enumerate(self.history) if val == "/")
@@ -270,7 +270,7 @@ class PostflopHoldemHistory(base.History):
                 if stage_i != 0:
                     community_cards += [history[i][j : j + 2] for j in range(0, len(action), 2)]
                 if stage_i == 1:
-                    assert len(action) == 6
+                    assert len(action) == 8
                     infoset.append(str(predict_cluster(hand + community_cards)))
                 elif stage_i == 2:
                     assert len(action) == 2

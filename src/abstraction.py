@@ -23,7 +23,6 @@ How do I find the optimal number of clusters?
 
 from typing import List
 import fast_evaluator
-from phevaluator import evaluate_cards
 import random
 import matplotlib.pyplot as plt
 import time
@@ -33,14 +32,35 @@ from utils import get_filenames
 import joblib
 from joblib import Parallel, delayed
 from tqdm import tqdm
-from fast_evaluator import phEvaluatorSetup
+from fast_evaluator import phEvaluatorSetup, evaluate_best_cards
 import argparse
 from sklearn.cluster import KMeans
 
-USE_KMEANS = True  # use kmeans if you want to cluster by equity distribution (more refined, but less accurate)
-NUM_FLOP_CLUSTERS = 10
-NUM_TURN_CLUSTERS = 10
-NUM_RIVER_CLUSTERS = 10
+
+def _read_env_bool(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _read_env_int(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        print(f"Invalid value for {name}: {raw}. Falling back to {default}.")
+        return default
+
+
+USE_KMEANS = _read_env_bool(
+    "POKER_USE_KMEANS", default=False
+)  # use kmeans if you want to cluster by equity distribution (more refined, but less accurate)
+NUM_FLOP_CLUSTERS = _read_env_int("POKER_FLOP_CLUSTERS", 10)
+NUM_TURN_CLUSTERS = _read_env_int("POKER_TURN_CLUSTERS", 10)
+NUM_RIVER_CLUSTERS = _read_env_int("POKER_RIVER_CLUSTERS", 10)
 
 NUM_BINS = 10
 
@@ -64,10 +84,13 @@ def load_kmeans_classifiers():
 
 if USE_KMEANS:
     # See `notebook/abstraction_exploration.ipynb` for some exploration of how many clusters to use
-    NUM_FLOP_CLUSTERS = 50
-    NUM_TURN_CLUSTERS = 50
+    if os.getenv("POKER_FLOP_CLUSTERS") is None:
+        NUM_FLOP_CLUSTERS = 50
+    if os.getenv("POKER_TURN_CLUSTERS") is None:
+        NUM_TURN_CLUSTERS = 50
     # For river, you can just compute equity, no need for equity distribution
-    NUM_RIVER_CLUSTERS = 10
+    if os.getenv("POKER_RIVER_CLUSTERS") is None:
+        NUM_RIVER_CLUSTERS = 10
     try:
         load_kmeans_classifiers()
     except Exception as e:
@@ -76,8 +99,8 @@ if USE_KMEANS:
 
 
 def evaluate_winner(board, player_hand, opponent_hand):
-    p1_score = evaluate_cards(*(board + player_hand))
-    p2_score = evaluate_cards(*(board + opponent_hand))
+    p1_score = evaluate_best_cards(board + player_hand)
+    p2_score = evaluate_best_cards(board + opponent_hand)
     if p1_score < p2_score:
         return 1
     elif p1_score > p2_score:
@@ -152,11 +175,11 @@ def generate_dataset(num_samples=50000, batch=0, save=True):
     np_player_hands = np.array(player_hands)
     np_opponent_hands = np.array(opponent_hands)
 
-    player_flop_cards = np.concatenate((np_player_hands, np_boards[:, :3]), axis=1).tolist()
-    player_turn_cards = np.concatenate((np_player_hands, np_boards[:, :4]), axis=1).tolist()
+    player_flop_cards = np.concatenate((np_player_hands, np_boards[:, :4]), axis=1).tolist()
+    player_turn_cards = np.concatenate((np_player_hands, np_boards[:, :5]), axis=1).tolist()
     player_river_cards = np.concatenate((np_player_hands, np_boards), axis=1).tolist()
-    opp_flop_cards = np.concatenate((np_opponent_hands, np_boards[:, :3]), axis=1).tolist()
-    opp_turn_cards = np.concatenate((np_opponent_hands, np_boards[:, :4]), axis=1).tolist()
+    opp_flop_cards = np.concatenate((np_opponent_hands, np_boards[:, :4]), axis=1).tolist()
+    opp_turn_cards = np.concatenate((np_opponent_hands, np_boards[:, :5]), axis=1).tolist()
     opp_river_cards = np.concatenate((np_opponent_hands, np_boards), axis=1).tolist()
 
     print("generating clusters")
@@ -293,11 +316,11 @@ def calculate_equity(player_cards: List[str], community_cards=[], n=2000, timer=
     for _ in range(n):
         random.shuffle(deck)
         opponent_cards = deck[:2]  # To avoid creating redundant copies
-        player_score = evaluate_cards(
-            *(player_cards + community_cards + deck[2 : 2 + (5 - len(community_cards))])
+        player_score = evaluate_best_cards(
+            player_cards + community_cards + deck[2 : 2 + (6 - len(community_cards))]
         )
-        opponent_score = evaluate_cards(
-            *(opponent_cards + community_cards + deck[2 : 2 + (5 - len(community_cards))])
+        opponent_score = evaluate_best_cards(
+            opponent_cards + community_cards + deck[2 : 2 + (6 - len(community_cards))]
         )
         if player_score < opponent_score:
             wins += 1
@@ -327,9 +350,9 @@ def calculate_equity_distribution(
 
     The equity distribution is a better way to represent the strength of a given hand. It represents
     how well a given hand performs over various profiles of community cards. We can calculate
-    the equity distribution of a hand at the following game stages: flop (we are given no community cards), turn (given 3 community cards) and river (given 4 community cards).
+    the equity distribution of a hand at the following game stages: flop (we are given no community cards), turn (given 4 community cards) and river (given 5 community cards).
 
-    if we want to generate a distribution for the EHS of the turn (so we are given our private cards + 3 community cards),
+    if we want to generate a distribution for the EHS of the turn (so we are given our private cards + 4 community cards),
     we draw various turn cards, and calculate the equity using those turn cards.
     If we find for a given turn card that its equity is 0.645, and we have 10 bins, we would increment the bin 0.60-0.70 by one.
     We repeat this process until we get enough turn card samples.
@@ -347,8 +370,8 @@ def calculate_equity_distribution(
     def sample_equity():
         random.shuffle(deck)
         if len(community_cards) == 0:
-            score = calculate_equity(player_cards, community_cards + deck[:3], n=200)
-        elif len(community_cards) < 5:
+            score = calculate_equity(player_cards, community_cards + deck[:4], n=200)
+        elif len(community_cards) < 6:
             score = calculate_equity(player_cards, community_cards + deck[:1], n=100)
         else:
             score = calculate_equity(player_cards, community_cards, n=100)
@@ -421,9 +444,9 @@ def generate_postflop_equity_distributions(
         generate_postflop_equity_distributions(n_samples, bins, "turn", save, timer)
         return
     elif stage == "flop":
-        num_community_cards = 3
-    elif stage == "turn":
         num_community_cards = 4
+    elif stage == "turn":
+        num_community_cards = 5
 
     def process_sample(num_community_cards, bins):
         deck = fast_evaluator.Deck()
@@ -469,20 +492,20 @@ def predict_cluster(cards):
     assert type(cards) == list
 
     if USE_KMEANS:
-        if len(cards) == 5:  # flop
+        if len(cards) == 6:  # flop (4 board + 2 hand)
             return predict_cluster_kmeans(kmeans_flop, cards)
-        elif len(cards) == 6:  # turn
+        elif len(cards) == 7:  # turn
             return predict_cluster_kmeans(kmeans_turn, cards)
-        elif len(cards) == 7:  # river
+        elif len(cards) == 8:  # river
             return predict_cluster_fast(cards, total_clusters=NUM_RIVER_CLUSTERS)
         else:
             raise ValueError("Invalid number of cards: ", len(cards))
     else:
-        if len(cards) == 5:  # flop
+        if len(cards) == 6:  # flop (4 board + 2 hand)
             return predict_cluster_fast(cards, total_clusters=NUM_FLOP_CLUSTERS)
-        elif len(cards) == 6:  # turn
+        elif len(cards) == 7:  # turn
             return predict_cluster_fast(cards, total_clusters=NUM_TURN_CLUSTERS)
-        elif len(cards) == 7:  # river
+        elif len(cards) == 8:  # river
             return predict_cluster_fast(cards, total_clusters=NUM_RIVER_CLUSTERS)
         else:
             raise ValueError("Invalid number of cards: ", len(cards))
