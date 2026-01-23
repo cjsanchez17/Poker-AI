@@ -24,6 +24,19 @@ try:
 except ImportError:
     postflop_holdem = None
 
+if postflop_holdem is None:
+    try:
+        import importlib.util
+
+        postflop_path = os.path.join(SRC_DIR, "postflop_holdem.py")
+        if os.path.exists(postflop_path):
+            spec = importlib.util.spec_from_file_location("postflop_holdem", postflop_path)
+            if spec and spec.loader:
+                postflop_holdem = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(postflop_holdem)
+    except Exception:
+        postflop_holdem = None
+
 try:
     from abstraction import predict_cluster  # type: ignore
 except ImportError:
