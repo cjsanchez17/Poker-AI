@@ -249,7 +249,7 @@ class PokerEnvironment:
     def play_flop(self):
         self.deck.draw()  # We must first burn one card, TODO: Show on video
 
-        for i in range(3):  # Draw 3 cards
+        for i in range(4):  # Draw 4 cards
             if self.input_cards:
                 card = Card(input(f"Input the {i}-th community card (ex: 'Ah'): "))
             else:

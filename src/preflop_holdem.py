@@ -16,7 +16,7 @@ from typing import List
 from abstraction import (
     get_preflop_cluster_id,
 )
-from fast_evaluator import evaluate_cards
+from fast_evaluator import evaluate_best_cards
 
 DISCRETE_ACTIONS = ["k", "bMIN", "bMID", "bMAX", "c", "f"]
 
@@ -274,8 +274,8 @@ class PreflopHoldemCFR(base.CFR):
 
 
 def evaluate_winner(board, player_hand, opponent_hand):
-    p1_score = evaluate_cards(*(board + player_hand))
-    p2_score = evaluate_cards(*(board + opponent_hand))
+    p1_score = evaluate_best_cards(board + player_hand)
+    p2_score = evaluate_best_cards(board + opponent_hand)
     if p1_score < p2_score:
         return 1
     elif p1_score > p2_score:

@@ -41,6 +41,12 @@ cd src
 python3 postflop_holdem.py
 ```
 
+By default the training uses the existing 10-cluster abstractions. If you want to use K-Means
+clustering with larger buckets, set environment variables before training, for example:
+```bash
+POKER_USE_KMEANS=1 POKER_FLOP_CLUSTERS=50 POKER_TURN_CLUSTERS=50 python3 postflop_holdem.py
+```
+
 ## Discussions
 
 ### Why Poker AI is interesting
