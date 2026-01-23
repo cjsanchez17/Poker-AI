@@ -249,28 +249,30 @@ class Player(Bot):
 
         try:
             for action in history:
-                if action not in DISCRETE_ACTIONS:
-                    if action == "/":
-                        stage_i += 1
-                        continue
-                    if stage_i != 0:
-                        community_cards += [
-                            action[i : i + 2] for i in range(0, len(action), 2)
-                        ]
-                    if stage_i == 1:
-                        if len(community_cards) < 4:
-                            return None
-                        infoset.append(str(predict_cluster(hand + community_cards)))
-                    elif stage_i == 2:
-                        if len(community_cards) < 5:
-                            return None
-                        infoset.append(str(predict_cluster(hand + community_cards)))
-                    elif stage_i == 3:
-                        if len(community_cards) < 6:
-                            return None
-                        infoset.append(str(predict_cluster(hand + community_cards)))
-                else:
+                if action == "/":
+                    stage_i += 1
+                    continue
+                if action in DISCRETE_ACTIONS:
                     infoset.append(action)
+                    continue
+                if stage_i != 0:
+                    if len(action) % 2 != 0:
+                        return None
+                    community_cards += [
+                        action[i : i + 2] for i in range(0, len(action), 2)
+                    ]
+                if stage_i == 1:
+                    if len(community_cards) < 4:
+                        return None
+                    infoset.append(str(predict_cluster(hand + community_cards)))
+                elif stage_i == 2:
+                    if len(community_cards) < 5:
+                        return None
+                    infoset.append(str(predict_cluster(hand + community_cards)))
+                elif stage_i == 3:
+                    if len(community_cards) < 6:
+                        return None
+                    infoset.append(str(predict_cluster(hand + community_cards)))
         except Exception as error:
             print(f"[CFR] Failed to build infoset: {error}")
             return None
