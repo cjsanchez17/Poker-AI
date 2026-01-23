@@ -44,6 +44,7 @@ INVERSE_RANK_KEY = {
 FLOP_1_CARD_POSITION = None
 FLOP_2_CARD_POSITION = None
 FLOP_3_CARD_POSITION = None
+FLOP_4_CARD_POSITION = None
 TURN_CARD_POSITION = None
 RIVER_CARD_POSITION = None
 PLAYER_CARD_1 = None
@@ -91,14 +92,15 @@ def scale_tuple(tup, factor):
 
 
 def update_asset_positions():
-    global FLOP_1_CARD_POSITION, FLOP_2_CARD_POSITION, FLOP_3_CARD_POSITION, TURN_CARD_POSITION, RIVER_CARD_POSITION, PLAYER_CARD_1, PLAYER_CARD_2, OPPONENT_CARD_1, OPPONENT_CARD_2
+    global FLOP_1_CARD_POSITION, FLOP_2_CARD_POSITION, FLOP_3_CARD_POSITION, FLOP_4_CARD_POSITION, TURN_CARD_POSITION, RIVER_CARD_POSITION, PLAYER_CARD_1, PLAYER_CARD_2, OPPONENT_CARD_1, OPPONENT_CARD_2
     global DEALER_BUTTON, DEALER_BUTTON_POSITION_1, DEALER_BUTTON_POSITION_2, CARD_BACK, POT_FONT, BET_BUTTON_FONT, BET_FONT, PLAYERS_FONT, fold_rect, check_rect, custom_rect, start_new_round_rect, buttons, input_box, POKER_BACKGROUND
 
-    FLOP_1_CARD_POSITION = scale_tuple((400, HEIGHT / 2 - 65), scale_factor)
-    FLOP_2_CARD_POSITION = scale_tuple((490, HEIGHT / 2 - 65), scale_factor)
-    FLOP_3_CARD_POSITION = scale_tuple((580, HEIGHT / 2 - 65), scale_factor)
-    TURN_CARD_POSITION = scale_tuple((670, HEIGHT / 2 - 65), scale_factor)
-    RIVER_CARD_POSITION = scale_tuple((760, HEIGHT / 2 - 65), scale_factor)
+    FLOP_1_CARD_POSITION = scale_tuple((360, HEIGHT / 2 - 65), scale_factor)
+    FLOP_2_CARD_POSITION = scale_tuple((450, HEIGHT / 2 - 65), scale_factor)
+    FLOP_3_CARD_POSITION = scale_tuple((540, HEIGHT / 2 - 65), scale_factor)
+    FLOP_4_CARD_POSITION = scale_tuple((630, HEIGHT / 2 - 65), scale_factor)
+    TURN_CARD_POSITION = scale_tuple((720, HEIGHT / 2 - 65), scale_factor)
+    RIVER_CARD_POSITION = scale_tuple((810, HEIGHT / 2 - 65), scale_factor)
     PLAYER_CARD_1 = scale_tuple((WIDTH / 2 - 70, HEIGHT - 220), scale_factor)
     PLAYER_CARD_2 = scale_tuple((WIDTH / 2, HEIGHT - 220), scale_factor)
     OPPONENT_CARD_1 = scale_tuple((WIDTH / 2 - 70, 35), scale_factor)
@@ -227,6 +229,8 @@ def display_community_cards(env: PokerEnvironment):
         elif idx == 2:
             WIN.blit(load_card_image(card), FLOP_3_CARD_POSITION)
         elif idx == 3:
+            WIN.blit(load_card_image(card), FLOP_4_CARD_POSITION)
+        elif idx == 4:
             WIN.blit(load_card_image(card), TURN_CARD_POSITION)
         else:
             WIN.blit(load_card_image(card), RIVER_CARD_POSITION)
