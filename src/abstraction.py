@@ -37,10 +37,31 @@ from fast_evaluator import phEvaluatorSetup
 import argparse
 from sklearn.cluster import KMeans
 
-USE_KMEANS = True  # use kmeans if you want to cluster by equity distribution (more refined, but less accurate)
-NUM_FLOP_CLUSTERS = 10
-NUM_TURN_CLUSTERS = 10
-NUM_RIVER_CLUSTERS = 10
+
+def _read_env_bool(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _read_env_int(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        print(f"Invalid value for {name}: {raw}. Falling back to {default}.")
+        return default
+
+
+USE_KMEANS = _read_env_bool(
+    "POKER_USE_KMEANS", default=False
+)  # use kmeans if you want to cluster by equity distribution (more refined, but less accurate)
+NUM_FLOP_CLUSTERS = _read_env_int("POKER_FLOP_CLUSTERS", 10)
+NUM_TURN_CLUSTERS = _read_env_int("POKER_TURN_CLUSTERS", 10)
+NUM_RIVER_CLUSTERS = _read_env_int("POKER_RIVER_CLUSTERS", 10)
 
 NUM_BINS = 10
 
@@ -64,10 +85,13 @@ def load_kmeans_classifiers():
 
 if USE_KMEANS:
     # See `notebook/abstraction_exploration.ipynb` for some exploration of how many clusters to use
-    NUM_FLOP_CLUSTERS = 50
-    NUM_TURN_CLUSTERS = 50
+    if os.getenv("POKER_FLOP_CLUSTERS") is None:
+        NUM_FLOP_CLUSTERS = 50
+    if os.getenv("POKER_TURN_CLUSTERS") is None:
+        NUM_TURN_CLUSTERS = 50
     # For river, you can just compute equity, no need for equity distribution
-    NUM_RIVER_CLUSTERS = 10
+    if os.getenv("POKER_RIVER_CLUSTERS") is None:
+        NUM_RIVER_CLUSTERS = 10
     try:
         load_kmeans_classifiers()
     except Exception as e:
