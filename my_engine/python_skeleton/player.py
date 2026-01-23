@@ -14,9 +14,10 @@ import sys
 
 DISCRETE_ACTIONS = ["k", "bMIN", "bMAX", "c", "f"]
 
-POKER_AI_SRC = os.getenv("POKER_AI_SRC")
-if POKER_AI_SRC:
-    sys.path.append(POKER_AI_SRC)
+BASE_DIR = os.path.dirname(__file__)
+SRC_DIR = os.path.join(BASE_DIR, "src")
+if SRC_DIR not in sys.path:
+    sys.path.append(SRC_DIR)
 
 try:
     import postflop_holdem  # type: ignore
@@ -50,9 +51,7 @@ class Player(Bot):
         self.player_index = None
         self.postflop_infosets = None
 
-        infoset_path = os.getenv("POKER_CFR_INFOSETS", "postflop_infoSets_batch_19.joblib")
-        if not os.path.isabs(infoset_path):
-            infoset_path = os.path.join(os.path.dirname(__file__), infoset_path)
+        infoset_path = os.path.join(SRC_DIR, "postflop_infoSets_batch_19.joblib")
         if os.path.exists(infoset_path):
             if postflop_holdem is not None:
                 sys.modules["__main__"].PostflopHoldemInfoSet = (
