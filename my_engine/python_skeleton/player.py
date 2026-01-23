@@ -19,6 +19,11 @@ if POKER_AI_SRC:
     sys.path.append(POKER_AI_SRC)
 
 try:
+    import postflop_holdem  # type: ignore
+except ImportError:
+    postflop_holdem = None
+
+try:
     from abstraction import predict_cluster  # type: ignore
 except ImportError:
     predict_cluster = None
@@ -49,7 +54,14 @@ class Player(Bot):
         if not os.path.isabs(infoset_path):
             infoset_path = os.path.join(os.path.dirname(__file__), infoset_path)
         if os.path.exists(infoset_path):
-            self.postflop_infosets = joblib.load(infoset_path)
+            if postflop_holdem is not None:
+                sys.modules["__main__"].PostflopHoldemInfoSet = (
+                    postflop_holdem.PostflopHoldemInfoSet
+                )
+            try:
+                self.postflop_infosets = joblib.load(infoset_path)
+            except Exception as error:
+                print(f"Failed to load CFR infosets: {error}")
 
     def handle_new_round(self, game_state, round_state, active):
         '''
