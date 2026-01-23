@@ -14,36 +14,36 @@ import sys
 
 DISCRETE_ACTIONS = ["k", "bMIN", "bMAX", "c", "f"]
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+# Update this to match your local layout when copying the bot.
+BASE_DIR = "/python_skeleton"
 SRC_DIR = os.path.join(BASE_DIR, "src")
-if SRC_DIR not in sys.path:
-    sys.path.append(SRC_DIR)
 
 print(f"[CFR] BASE_DIR={BASE_DIR}")
 print(f"[CFR] SRC_DIR={SRC_DIR}")
 
-try:
-    import postflop_holdem  # type: ignore
-except ImportError:
-    postflop_holdem = None
-
-if postflop_holdem is None:
+def _load_module_from_path(name, path):
+    if not os.path.exists(path):
+        return None
     try:
         import importlib.util
 
-        postflop_path = os.path.join(SRC_DIR, "postflop_holdem.py")
-        if os.path.exists(postflop_path):
-            spec = importlib.util.spec_from_file_location("postflop_holdem", postflop_path)
-            if spec and spec.loader:
-                postflop_holdem = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(postflop_holdem)
+        spec = importlib.util.spec_from_file_location(name, path)
+        if spec and spec.loader:
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            return module
     except Exception:
-        postflop_holdem = None
+        return None
+    return None
 
-try:
-    from abstraction import predict_cluster  # type: ignore
-except ImportError:
-    predict_cluster = None
+
+postflop_holdem = _load_module_from_path(
+    "postflop_holdem", os.path.join(SRC_DIR, "postflop_holdem.py")
+)
+abstraction_module = _load_module_from_path(
+    "abstraction", os.path.join(SRC_DIR, "abstraction.py")
+)
+predict_cluster = getattr(abstraction_module, "predict_cluster", None)
 
 # from discard_helper import choose_card_to_toss
 
