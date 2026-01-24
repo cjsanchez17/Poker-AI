@@ -241,10 +241,11 @@ class Player(Bot):
 
         infoset = []
         stage_i = 0
-        if self.player_index == 0:
-            hand = [history[0][:2], history[0][2:4]]
-        else:
-            hand = [history[1][:2], history[1][2:4]]
+        hand_token = history[0] if self.player_index == 0 else history[1]
+        if not hand_token or len(hand_token) < 4 or "X" in hand_token:
+            print(f"[CFR] Couldn't locate valid hand in history: {history}")
+            return None
+        hand = [hand_token[:2], hand_token[2:4]]
         community_cards = []
 
         try:
