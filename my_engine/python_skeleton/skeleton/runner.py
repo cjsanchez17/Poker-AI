@@ -113,6 +113,8 @@ class Runner():
                     round_flag = True
                 elif clause[0] == 'Q':
                     return
+                if hasattr(self.pokerbot, "handle_engine_update"):
+                    self.pokerbot.handle_engine_update(clause, round_state, active)
             if round_flag or isinstance(round_state, TerminalState):  # ack the engine
                 self.send(CheckAction())
             else:
