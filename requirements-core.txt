@@ -1,0 +1,7 @@
+pygame
+tqdm
+treys
+joblib
+phevaluator
+matplotlib
+scikit-learn==1.5.0
